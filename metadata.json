@@ -1,0 +1,6 @@
+{
+  "name": "Accurate Group",
+  "description": "Accurate Group Enterprise IT Helpdesk & Computer Inventory Management System with role-based access control, master data governance, and secure user management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

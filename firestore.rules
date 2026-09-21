@@ -1,0 +1,327 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.email == 'accuratecmmit@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isSuperAdmin() {
+      return isBootstrapAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'SUPER_ADMIN'
+      );
+    }
+
+    function isITAdmin() {
+      return isSuperAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'IT_ADMIN'
+      );
+    }
+
+    function getUserRole() {
+      return isSuperAdmin() ? 'SUPER_ADMIN' :
+        isITAdmin() ? 'IT_ADMIN' :
+        (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)))
+          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          : 'EMPLOYEE';
+    }
+
+    function isITTechnician() {
+      return isITAdmin() || getUserRole() == 'IT_TECHNICIAN';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // ==========================================
+    // 2. Master Data (Companies, Locations, Departments, IT Teams, Roles)
+    // ==========================================
+
+    match /companies/{companyId} {
+      allow get, list: if true;
+      allow create: if isSuperAdmin() && isValidId(companyId);
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /locations/{locationId} {
+      allow get, list: if true;
+      allow create: if isSuperAdmin() && isValidId(locationId);
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /departments/{departmentId} {
+      allow get, list: if true;
+      allow create: if isSuperAdmin() && isValidId(departmentId);
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /it_teams/{teamId} {
+      allow get, list: if true;
+      allow create: if isSuperAdmin() && isValidId(teamId);
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /roles/{roleId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // 3. User Profiles & Change Requests
+    // ==========================================
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow update: if isSignedIn() && (
+        isSuperAdmin() ||
+        (isITAdmin() && existing().role != 'SUPER_ADMIN') ||
+        (request.auth.uid == userId && incoming().role == existing().role)
+      );
+      allow delete: if false; // Soft delete only
+    }
+
+    match /user_change_requests/{requestId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isITAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ==========================================
+    // 4. Tickets Subsystem & Histories
+    // ==========================================
+
+    match /tickets/{ticketId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && (
+        incoming().requesterId == request.auth.uid ||
+        isITTechnician()
+      );
+      allow update: if isSignedIn() && (
+        isITTechnician() ||
+        (existing().requesterId == request.auth.uid && incoming().status in ['CLOSED', 'CANCELLED'])
+      ) && incoming().ticketNumber == existing().ticketNumber; // Ticket number is immutable
+      allow delete: if false; // Soft delete only
+
+      // Subcollection: Status History (Append-Only)
+      match /status_history/{historyId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false; // Immutable append-only
+      }
+
+      // Subcollection: Priority History (Append-Only)
+      match /priority_history/{historyId} {
+        allow get, list: if isSignedIn();
+        allow create: if isITTechnician();
+        allow update, delete: if false; // Immutable append-only
+      }
+
+      // Subcollection: Assignment History (Append-Only)
+      match /assignment_history/{historyId} {
+        allow get, list: if isSignedIn();
+        allow create: if isITTechnician();
+        allow update, delete: if false; // Immutable append-only
+      }
+
+      // Subcollection: Comments
+      match /comments/{commentId} {
+        allow get, list: if isSignedIn() && (
+          isITTechnician() ||
+          resource.data.isInternalOnly == false
+        );
+        allow create: if isSignedIn() && (
+          isITTechnician() ||
+          incoming().isInternalOnly == false
+        );
+        allow update: if isSignedIn() && request.auth.uid == resource.data.authorId;
+        allow delete: if isITAdmin();
+      }
+    }
+
+    // Standalone history query matchers
+    match /{path=**}/status_history/{historyId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/priority_history/{historyId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/assignment_history/{historyId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/comments/{commentId} {
+      allow read: if isSignedIn();
+    }
+
+    // ==========================================
+    // 5. Assets & Computer Inventory
+    // ==========================================
+
+    match /assets/{assetId} {
+      // Employee: view own assigned assets only.
+      // IT Technician / IT Admin / Super Admin: inventory access.
+      allow get: if isSignedIn() && (
+        isITTechnician() ||
+        resource.data.assignedUserId == request.auth.uid
+      );
+      allow list: if isSignedIn() && (
+        isITTechnician() ||
+        resource.data.assignedUserId == request.auth.uid
+      );
+      allow create: if isITTechnician();
+      allow update: if isITTechnician();
+      allow delete: if false; // Soft delete only (Never permanently delete assets)
+
+      // Subcollection: Assignment History (Append-Only)
+      match /assignment_history/{historyId} {
+        allow get, list: if isSignedIn();
+        allow create: if isITTechnician();
+        allow update, delete: if false; // Immutable append-only
+      }
+
+      // Subcollection: Change History (Append-Only)
+      match /change_history/{historyId} {
+        allow get, list: if isSignedIn();
+        allow create: if isITTechnician();
+        allow update, delete: if false; // Immutable append-only
+      }
+    }
+
+    match /{path=**}/assignment_history/{historyId} {
+      allow read: if isSignedIn();
+    }
+    match /{path=**}/change_history/{historyId} {
+      allow read: if isSignedIn();
+    }
+
+    // ==========================================
+    // 6. SLA Configurations & History
+    // ==========================================
+
+    match /sla_configs/{configId} {
+      allow get, list: if true;
+      allow create, update: if isITAdmin();
+      allow delete: if false; // Soft delete only
+    }
+
+    match /sla_history/{historyId} {
+      allow get, list: if isSignedIn();
+      allow create: if isITTechnician();
+      allow update, delete: if false; // Immutable append-only
+    }
+
+    // ==========================================
+    // 7. Security, Auditing, Sessions & Notifications
+    // ==========================================
+
+    match /audit_logs/{logId} {
+      allow get, list: if isITAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Immutable append-only
+    }
+
+    match /login_history/{historyId} {
+      allow get, list: if isITAdmin();
+      allow create: if true; // Allows logging pre-auth attempts
+      allow update, delete: if false; // Immutable append-only
+    }
+
+    match /sessions/{sessionId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isITAdmin());
+      allow list: if isITAdmin();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isITAdmin());
+      allow delete: if isITAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if isSignedIn() && (
+        resource.data.recipientId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+    }
+
+    match /attachments/{attachmentId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isITAdmin();
+      allow delete: if isITAdmin();
+    }
+
+    match /saved_filters/{filterId} {
+      allow get, list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.isShared == true ||
+        isSuperAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
+      );
+    }
+
+    match /reports_config/{reportId} {
+      allow get, list: if isITAdmin();
+      allow create, update, delete: if isITAdmin();
+    }
+
+    match /sequences/{sequenceId} {
+      allow get, list: if true;
+      allow create: if isSuperAdmin();
+      allow update: if isSignedIn(); // Atomic increments
+      allow delete: if false; // Sequence counters must never be dropped
+    }
+
+    match /system_config/{configId} {
+      allow get, list: if true;
+      allow create, update: if isSuperAdmin();
+      allow delete: if false;
+    }
+  }
+}

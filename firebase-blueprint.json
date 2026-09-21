@@ -1,0 +1,600 @@
+{
+  "entities": {
+    "Company": {
+      "title": "Company",
+      "description": "Independent master data entity representing a client or subsidiary business.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the company", "maxLength": 128 },
+        "code": { "type": "string", "description": "Unique uppercase code (e.g. APEX)", "maxLength": 32 },
+        "name": { "type": "string", "description": "Full legal company name", "maxLength": 120 },
+        "domain": { "type": "string", "description": "Email domain", "maxLength": 120 },
+        "contactEmail": { "type": "string", "description": "Support contact email", "maxLength": 120 },
+        "status": { "type": "string", "description": "Status", "enum": ["ACTIVE", "INACTIVE", "SUSPENDED"] },
+        "isDeleted": { "type": "boolean", "description": "Soft delete flag" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "status", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "Location": {
+      "title": "Location",
+      "description": "Independent master data entity representing a facility or geographic office.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique location identifier", "maxLength": 128 },
+        "code": { "type": "string", "description": "Unique facility code (e.g. NYC-HQ)", "maxLength": 32 },
+        "name": { "type": "string", "description": "Location name", "maxLength": 120 },
+        "address": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 80 },
+        "state": { "type": "string", "maxLength": 80 },
+        "country": { "type": "string", "maxLength": 80 },
+        "postalCode": { "type": "string", "maxLength": 32 },
+        "timezone": { "type": "string", "maxLength": 60 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "MAINTENANCE"] },
+        "isDeleted": { "type": "boolean", "description": "Soft delete flag" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "city", "country", "status", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Organizational department master record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 255 },
+        "headOfDepartmentId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "status", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "ITTeam": {
+      "title": "ITTeam",
+      "description": "IT support and technical service team.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 255 },
+        "leadAdminId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "status", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role, independent company/location, and IT team affiliation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 120 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "phoneNumber": { "type": "string", "maxLength": 32 },
+        "role": { "type": "string", "enum": ["EMPLOYEE", "IT_TECHNICIAN", "IT_ADMIN", "SUPER_ADMIN"] },
+        "companyId": { "type": "string", "maxLength": 128 },
+        "locationId": { "type": "string", "maxLength": 128 },
+        "departmentId": { "type": "string", "maxLength": 128 },
+        "itTeamId": { "type": "string", "maxLength": 128 },
+        "jobTitle": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "PENDING_APPROVAL", "DEACTIVATED"] },
+        "mfaEnabled": { "type": "boolean" },
+        "passwordHash": { "type": "string", "maxLength": 256 },
+        "passwordSalt": { "type": "string", "maxLength": 64 },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "role", "status", "mfaEnabled", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "UserProfileChangeRequest": {
+      "title": "UserProfileChangeRequest",
+      "description": "User profile modification request pending administrative review.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "requestedChanges": { "type": "string" },
+        "reason": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "reviewedBy": { "type": "string", "maxLength": 128 },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "reviewNotes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "IT support helpdesk ticket. Non-reusable sequential identifier.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketNumber": { "type": "string", "maxLength": 32 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "category": { "type": "string", "enum": ["HARDWARE", "SOFTWARE", "NETWORK", "ACCESS", "EMAIL", "TELEPHONY", "OTHER"] },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "status": { "type": "string", "enum": ["NEW", "OPEN", "IN_PROGRESS", "PENDING_VENDOR", "PENDING_USER", "RESOLVED", "CLOSED", "CANCELLED"] },
+        "requesterId": { "type": "string", "maxLength": 128 },
+        "requesterCompanyId": { "type": "string", "maxLength": 128 },
+        "requesterLocationId": { "type": "string", "maxLength": 128 },
+        "requesterDepartmentId": { "type": "string", "maxLength": 128 },
+        "assignedTeamId": { "type": "string", "maxLength": 128 },
+        "assignedTechnicianId": { "type": "string", "maxLength": 128 },
+        "relatedAssetId": { "type": "string", "maxLength": 128 },
+        "slaConfigId": { "type": "string", "maxLength": 128 },
+        "slaResponseDueAt": { "type": "string", "format": "date-time" },
+        "slaResolutionDueAt": { "type": "string", "format": "date-time" },
+        "firstRespondedAt": { "type": "string", "format": "date-time" },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ticketNumber", "title", "description", "category", "priority", "status", "requesterId", "requesterCompanyId", "requesterLocationId", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "TicketStatusHistory": {
+      "title": "TicketStatusHistory",
+      "description": "Immutable ledger tracking ticket status changes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketId": { "type": "string", "maxLength": 128 },
+        "fromStatus": { "type": "string", "maxLength": 32 },
+        "toStatus": { "type": "string", "maxLength": 32 },
+        "changedById": { "type": "string", "maxLength": 128 },
+        "changedByEmail": { "type": "string", "maxLength": 120 },
+        "reason": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ticketId", "toStatus", "changedById", "changedByEmail", "timestamp"]
+    },
+    "TicketPriorityHistory": {
+      "title": "TicketPriorityHistory",
+      "description": "Immutable ledger tracking ticket priority changes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketId": { "type": "string", "maxLength": 128 },
+        "fromPriority": { "type": "string", "maxLength": 32 },
+        "toPriority": { "type": "string", "maxLength": 32 },
+        "changedById": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ticketId", "fromPriority", "toPriority", "changedById", "reason", "timestamp"]
+    },
+    "TicketAssignmentHistory": {
+      "title": "TicketAssignmentHistory",
+      "description": "Immutable ledger tracking ticket assignments.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketId": { "type": "string", "maxLength": 128 },
+        "fromTeamId": { "type": "string", "maxLength": 128 },
+        "toTeamId": { "type": "string", "maxLength": 128 },
+        "fromTechnicianId": { "type": "string", "maxLength": 128 },
+        "toTechnicianId": { "type": "string", "maxLength": 128 },
+        "assignedById": { "type": "string", "maxLength": 128 },
+        "assignmentNote": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ticketId", "assignedById", "timestamp"]
+    },
+    "TicketComment": {
+      "title": "TicketComment",
+      "description": "Public or internal IT ticket comment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorEmail": { "type": "string", "maxLength": 120 },
+        "authorRole": { "type": "string", "maxLength": 32 },
+        "isInternalOnly": { "type": "boolean" },
+        "content": { "type": "string", "maxLength": 4000 },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ticketId", "authorId", "authorEmail", "authorRole", "isInternalOnly", "content", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "Attachment": {
+      "title": "Attachment",
+      "description": "File attachment metadata for tickets, comments, or assets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "entityType": { "type": "string", "enum": ["TICKET", "COMMENT", "ASSET", "PROFILE"] },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "fileName": { "type": "string", "maxLength": 255 },
+        "fileSizeBytes": { "type": "number" },
+        "mimeType": { "type": "string", "maxLength": 128 },
+        "storagePath": { "type": "string", "maxLength": 500 },
+        "uploadedById": { "type": "string", "maxLength": 128 },
+        "uploadedAt": { "type": "string", "format": "date-time" },
+        "isDeleted": { "type": "boolean" }
+      },
+      "required": ["id", "entityType", "entityId", "fileName", "fileSizeBytes", "mimeType", "storagePath", "uploadedById", "uploadedAt", "isDeleted"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification for ticket updates, SLA alerts, and assignments.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "recipientId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 500 },
+        "type": { "type": "string", "maxLength": 64 },
+        "referenceEntityType": { "type": "string", "maxLength": 64 },
+        "referenceEntityId": { "type": "string", "maxLength": 128 },
+        "isRead": { "type": "boolean" },
+        "readAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "recipientId", "title", "message", "type", "isRead", "createdAt"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Computer or hardware inventory item. Historical records are preserved.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "assetTag": { "type": "string", "maxLength": 64 },
+        "serialNumber": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "assetType": { "type": "string", "enum": ["LAPTOP", "DESKTOP", "WORKSTATION", "SERVER", "MONITOR", "NETWORK_DEVICE", "PERIPHERAL", "TABLET"] },
+        "manufacturer": { "type": "string", "maxLength": 100 },
+        "model": { "type": "string", "maxLength": 100 },
+        "companyId": { "type": "string", "maxLength": 128 },
+        "locationId": { "type": "string", "maxLength": 128 },
+        "departmentId": { "type": "string", "maxLength": 128 },
+        "assignedUserId": { "type": "string", "maxLength": 128 },
+        "assignedTeamId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["IN_STOCK", "ASSIGNED", "IN_REPAIR", "MAINTENANCE", "DECOMMISSIONED", "DISPOSED", "LOST"] },
+        "purchaseDate": { "type": "string", "format": "date-time" },
+        "purchaseCost": { "type": "number" },
+        "warrantyExpiryDate": { "type": "string", "format": "date-time" },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assetTag", "serialNumber", "name", "assetType", "manufacturer", "model", "companyId", "locationId", "status", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "AssetAssignmentHistory": {
+      "title": "AssetAssignmentHistory",
+      "description": "Immutable ledger tracking hardware checkout, returns, and transfers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "assetId": { "type": "string", "maxLength": 128 },
+        "assignedToUserId": { "type": "string", "maxLength": 128 },
+        "assignedToCompanyId": { "type": "string", "maxLength": 128 },
+        "assignedToLocationId": { "type": "string", "maxLength": 128 },
+        "assignedByUserId": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "enum": ["ASSIGN", "RETURN", "TRANSFER", "RELOCATE"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "assignedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assetId", "assignedToCompanyId", "assignedToLocationId", "assignedByUserId", "action", "assignedAt"]
+    },
+    "AssetChangeHistory": {
+      "title": "AssetChangeHistory",
+      "description": "Immutable ledger tracking hardware modifications and lifecycle events.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "assetId": { "type": "string", "maxLength": 128 },
+        "changedByUserId": { "type": "string", "maxLength": 128 },
+        "fieldChanged": { "type": "string", "maxLength": 64 },
+        "previousValue": { "type": "string", "maxLength": 500 },
+        "newValue": { "type": "string", "maxLength": 500 },
+        "changeReason": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assetId", "changedByUserId", "fieldChanged", "timestamp"]
+    },
+    "SLAConfig": {
+      "title": "SLAConfig",
+      "description": "Service Level Agreement response and resolution targets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "responseTimeMinutes": { "type": "number" },
+        "resolutionTimeMinutes": { "type": "number" },
+        "businessHoursOnly": { "type": "boolean" },
+        "escalationTeamId": { "type": "string", "maxLength": 128 },
+        "isDefault": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "priority", "responseTimeMinutes", "resolutionTimeMinutes", "businessHoursOnly", "status", "isDeleted", "createdAt", "updatedAt"]
+    },
+    "SLAHistory": {
+      "title": "SLAHistory",
+      "description": "Immutable tracking ledger for SLA breaches and checkpoints.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketId": { "type": "string", "maxLength": 128 },
+        "slaConfigId": { "type": "string", "maxLength": 128 },
+        "eventType": { "type": "string", "maxLength": 64 },
+        "targetDueAt": { "type": "string", "format": "date-time" },
+        "actualOccurredAt": { "type": "string", "format": "date-time" },
+        "breachDurationMinutes": { "type": "number" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ticketId", "slaConfigId", "eventType", "targetDueAt", "actualOccurredAt", "recordedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and operational governance audit trail.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "actorId": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 120 },
+        "actorRole": { "type": "string", "maxLength": 32 },
+        "action": { "type": "string", "maxLength": 64 },
+        "entityType": { "type": "string", "maxLength": 64 },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 2048 },
+        "ipAddress": { "type": "string", "maxLength": 64 },
+        "userAgent": { "type": "string", "maxLength": 255 },
+        "companyId": { "type": "string", "maxLength": 128 },
+        "locationId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "timestamp", "actorId", "actorEmail", "actorRole", "action", "entityType", "entityId"]
+    },
+    "LoginSecurityHistory": {
+      "title": "LoginSecurityHistory",
+      "description": "Authentication audit trail logging sign-in successes and failures.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "attemptTimestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["SUCCESS", "FAILED_INVALID_CREDENTIALS", "FAILED_SUSPENDED", "FAILED_MFA"] },
+        "ipAddress": { "type": "string", "maxLength": 64 },
+        "userAgent": { "type": "string", "maxLength": 255 },
+        "failureReason": { "type": "string", "maxLength": 255 }
+      },
+      "required": ["id", "userEmail", "attemptTimestamp", "status", "ipAddress", "userAgent"]
+    },
+    "UserSession": {
+      "title": "UserSession",
+      "description": "Active authenticated user session with revocation support.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "userRole": { "type": "string", "maxLength": 32 },
+        "activeTokenHash": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["ACTIVE", "EXPIRED", "REVOKED"] },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastActiveAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userEmail", "userRole", "activeTokenHash", "status", "expiresAt", "createdAt", "lastActiveAt"]
+    },
+    "SavedFilter": {
+      "title": "SavedFilter",
+      "description": "User-saved search filter configuration for queues and inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "entityType": { "type": "string", "enum": ["TICKET", "ASSET", "AUDIT_LOG"] },
+        "isShared": { "type": "boolean" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "entityType", "isShared", "isDefault", "createdAt", "updatedAt"]
+    },
+    "ReportConfig": {
+      "title": "ReportConfig",
+      "description": "SLA compliance, workload, and inventory report templates.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "reportType": { "type": "string", "maxLength": 64 },
+        "createdByUserId": { "type": "string", "maxLength": 128 },
+        "schedule": { "type": "string", "enum": ["NONE", "DAILY", "WEEKLY", "MONTHLY"] },
+        "lastGeneratedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "reportType", "createdByUserId", "schedule", "createdAt", "updatedAt"]
+    },
+    "SequenceCounter": {
+      "title": "SequenceCounter",
+      "description": "Atomic counter sequence ensuring ticket numbers and asset tags are never reused.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "prefix": { "type": "string", "maxLength": 16 },
+        "currentNumber": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "prefix", "currentNumber", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Authoritative registry document for administrative users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["IT_ADMIN", "SUPER_ADMIN"] },
+        "itTeamId": { "type": "string", "maxLength": 128 },
+        "grantedBy": { "type": "string", "maxLength": 128 },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "role", "grantedAt"]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "Enterprise role definitions and associated RBAC permissions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 64 },
+        "description": { "type": "string", "maxLength": 255 },
+        "isSystem": { "type": "boolean" },
+        "permissions": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "description", "isSystem", "permissions", "createdAt", "updatedAt"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Global system runtime configuration and initialization marker.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "initialSeedCompleted": { "type": "boolean" },
+        "seededAt": { "type": "string", "format": "date-time" },
+        "systemVersion": { "type": "string", "maxLength": 32 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "initialSeedCompleted", "systemVersion", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/companies/{companyId}": {
+      "schema": "Company",
+      "description": "Master data collection of independent client and subsidiary companies."
+    },
+    "/locations/{locationId}": {
+      "schema": "Location",
+      "description": "Master data collection of independent geographic offices and facilities."
+    },
+    "/departments/{departmentId}": {
+      "schema": "Department",
+      "description": "Master data collection of organizational departments."
+    },
+    "/it_teams/{teamId}": {
+      "schema": "ITTeam",
+      "description": "Collection of specialized IT support teams."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles with role, department, company, location, and IT team affiliation."
+    },
+    "/user_change_requests/{requestId}": {
+      "schema": "UserProfileChangeRequest",
+      "description": "Profile change requests submitted by employees for administrative approval."
+    },
+    "/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "IT support helpdesk tickets with sequential non-reusable ticket numbers."
+    },
+    "/tickets/{ticketId}/status_history/{historyId}": {
+      "schema": "TicketStatusHistory",
+      "description": "Immutable append-only history of ticket status transitions."
+    },
+    "/tickets/{ticketId}/priority_history/{historyId}": {
+      "schema": "TicketPriorityHistory",
+      "description": "Immutable append-only history of ticket priority updates."
+    },
+    "/tickets/{ticketId}/assignment_history/{historyId}": {
+      "schema": "TicketAssignmentHistory",
+      "description": "Immutable append-only history of ticket assignments."
+    },
+    "/tickets/{ticketId}/comments/{commentId}": {
+      "schema": "TicketComment",
+      "description": "Public and internal technical notes on tickets."
+    },
+    "/attachments/{attachmentId}": {
+      "schema": "Attachment",
+      "description": "Storage metadata for file attachments."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Targeted notifications for ticket updates and assignments."
+    },
+    "/assets/{assetId}": {
+      "schema": "Asset",
+      "description": "Hardware and computer inventory assets."
+    },
+    "/assets/{assetId}/assignment_history/{historyId}": {
+      "schema": "AssetAssignmentHistory",
+      "description": "Immutable ledger tracking asset assignments and returns."
+    },
+    "/assets/{assetId}/change_history/{historyId}": {
+      "schema": "AssetChangeHistory",
+      "description": "Immutable ledger tracking asset modifications."
+    },
+    "/sla_configs/{configId}": {
+      "schema": "SLAConfig",
+      "description": "Service Level Agreement policies."
+    },
+    "/sla_history/{historyId}": {
+      "schema": "SLAHistory",
+      "description": "Immutable ledger of SLA evaluations and breaches."
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Immutable security and governance audit trail."
+    },
+    "/login_history/{historyId}": {
+      "schema": "LoginSecurityHistory",
+      "description": "Immutable security log of authentication events."
+    },
+    "/sessions/{sessionId}": {
+      "schema": "UserSession",
+      "description": "Active user sessions with token tracking."
+    },
+    "/saved_filters/{filterId}": {
+      "schema": "SavedFilter",
+      "description": "User-saved search queries and filters."
+    },
+    "/reports_config/{reportId}": {
+      "schema": "ReportConfig",
+      "description": "Configured analytics and SLA reports."
+    },
+    "/sequences/{sequenceId}": {
+      "schema": "SequenceCounter",
+      "description": "Atomic non-reusable sequence counters for tickets and assets."
+    },
+    "/admins/{adminId}": {
+      "schema": "AdminRecord",
+      "description": "Authoritative lookup registry of administrative identifiers."
+    },
+    "/system_config/{configId}": {
+      "schema": "SystemConfig",
+      "description": "Global system configurations and bootstrap state."
+    },
+    "/roles/{roleId}": {
+      "schema": "Role",
+      "description": "System role definitions and permissions catalog."
+    }
+  }
+}
