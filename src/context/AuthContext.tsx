@@ -22,6 +22,7 @@ import {
   logoutAllDevices as apiLogoutAllDevices,
   clearStoredToken,
   getStoredToken,
+  seedDefaultUsersIfEmpty,
 } from '../services/authService';
 import { initializeMasterDataIfEmpty } from '../services/masterDataService';
 import { logger } from '../lib/logger';
@@ -140,13 +141,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkSession();
+    // Seed default organizational users if empty
+    seedDefaultUsersIfEmpty().catch((err) =>
+      logger.warn('Seed users init check notice:', err)
+    );
     // Initialize master data
     initializeMasterDataIfEmpty().catch((err) =>
       logger.warn('Non-blocking master data init check:', err)
     );
   }, [checkSession]);
 
-  // Sync with Firebase Auth as complementary provider
+  // Sync with Firebase Auth as direct provider
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
@@ -154,6 +159,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!profile) {
           try {
             const userProfile = await syncUserProfile(firebaseUser);
+            const st = (userProfile.status || '').toUpperCase();
+            if (
+              st !== 'ACTIVE' &&
+              st !== 'APPROVED' &&
+              firebaseUser.email?.toLowerCase() !== BOOTSTRAP_SUPER_ADMIN_EMAIL.toLowerCase()
+            ) {
+              await signOutUser();
+              setUser(null);
+              setProfile(null);
+              clearStoredToken();
+              return;
+            }
             setProfile(userProfile);
           } catch (error) {
             logger.error('Error synchronizing user profile', error);

@@ -63,7 +63,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
     setIsSubmitting(false);
 
     if (!result.success) {
-      setErrorMessage(result.error || 'Login failed.');
+      let cleanError = result.error || 'Login failed.';
+      if (cleanError.includes('<html') || cleanError.includes('<!DOCTYPE') || cleanError.includes('Server returned HTML')) {
+        cleanError = 'Authentication service encountered an unexpected error. Please try again.';
+      }
+      setErrorMessage(cleanError);
       if (result.isLocked) {
         setIsLocked(true);
         setLockoutUntil(result.lockoutUntil || null);
