@@ -441,6 +441,8 @@ export interface Ticket {
   assignedTeamName?: string | null;
   assignedTechnicianId?: string | null; // FK -> UserProfile.id (IT_TECHNICIAN or IT_ADMIN)
   assignedTechnicianName?: string | null;
+  assignedTechnicianEmail?: string | null;
+  assignedAt?: string | null; // Timestamp when assigned
 
   // Associated hardware/computer (optional)
   relatedAssetId?: string | null; // FK -> Asset.id
@@ -456,19 +458,90 @@ export interface Ticket {
   // Attachments
   attachmentIds?: string[];
 
-  // SLA Tracking
+  // SLA Tracking & Timestamps
   slaConfigId?: string | null; // FK -> SLAConfig.id
   slaResponseDueAt?: string | null;
   slaResolutionDueAt?: string | null;
+  responseTargetTime?: string | null;
+  resolutionTargetTime?: string | null;
   firstRespondedAt?: string | null;
+  firstResponseAt?: string | null;
   resolvedAt?: string | null;
   closedAt?: string | null;
   cancelledAt?: string | null;
   cancellationReason?: string | null;
+  slaPausedAt?: string | null;
 
   isDeleted: boolean; // Soft delete flag to preserve history
   createdAt: string;
   updatedAt: string;
+}
+
+// Helpdesk Ticket Firestore Data Structure Definition
+export interface TicketFirestoreSchemaField {
+  name: string;
+  type: string;
+  required: boolean;
+  isImmutable?: boolean;
+  description: string;
+  category: 'IDENTIFIER' | 'PRIORITY' | 'STATUS' | 'ASSIGNEE' | 'TIMESTAMPS' | 'REQUESTER' | 'RELATION' | 'SYSTEM';
+  enum?: string[];
+  format?: string;
+  maxLength?: number;
+}
+
+export interface TicketFirestoreSchema {
+  collectionPath: string;
+  subcollections: {
+    comments: string;
+    statusHistory: string;
+    priorityHistory: string;
+    assignmentHistory: string;
+  };
+  fields: TicketFirestoreSchemaField[];
+  priorities: TicketPriorityDefinition[];
+  statuses: TicketStatusDefinition[];
+}
+
+export interface TicketPriorityDefinition {
+  id: TicketPriority;
+  label: string;
+  level: number;
+  badgeClass: string;
+  badgeBg: string;
+  textColor: string;
+  defaultResponseMinutes: number;
+  defaultResolutionMinutes: number;
+  description: string;
+}
+
+export interface TicketStatusDefinition {
+  id: TicketStatus;
+  label: string;
+  stage: 'NEW' | 'ASSIGNED' | 'WORKING' | 'WAITING' | 'RESOLVED' | 'CLOSED' | 'CANCELLED';
+  isTerminal: boolean;
+  allowsEdit: boolean;
+  badgeClass: string;
+  badgeBg: string;
+  textColor: string;
+  description: string;
+  allowedTransitions: TicketStatus[];
+}
+
+export interface TicketMetrics {
+  totalCount: number;
+  openCount: number;
+  inProgressCount: number;
+  waitingCount: number;
+  resolvedCount: number;
+  closedCount: number;
+  cancelledCount: number;
+  unassignedCount: number;
+  criticalUrgentCount: number;
+  slaBreachedCount: number;
+  byPriority: Record<TicketPriority, number>;
+  byStatus: Record<TicketStatus, number>;
+  byCategory: Record<string, number>;
 }
 
 // Immutable Historical Records (Never deleted or overwritten)

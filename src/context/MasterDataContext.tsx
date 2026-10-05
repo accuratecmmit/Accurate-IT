@@ -1,10 +1,31 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { Company, Location, Department, ITTeam } from '../types';
+import {
+  Company,
+  Location,
+  Department,
+  ITTeam,
+  Ticket,
+  TicketCategory,
+  TicketPriority,
+  TicketPriorityDefinition,
+  TicketStatus,
+  TicketStatusDefinition,
+  TicketFirestoreSchema,
+  TicketMetrics,
+} from '../types';
+import {
+  TICKET_FIRESTORE_SCHEMA,
+  TICKET_PRIORITIES,
+  TICKET_STATUSES,
+  computeTicketMetrics,
+} from '../services/ticketSchemaDefinition';
 import {
   subscribeToCompanies,
   subscribeToLocations,
   subscribeToDepartments,
   subscribeToITTeams,
+  subscribeToHelpdeskTickets,
+  fetchMasterTickets,
   createCompany as serviceCreateCompany,
   updateCompany as serviceUpdateCompany,
   archiveCompany as serviceArchiveCompany,
@@ -29,6 +50,12 @@ import {
   fetchMasterDepartments,
   initializeMasterDataIfEmpty,
 } from '../services/masterDataService';
+import {
+  createTicket as serviceCreateTicket,
+  updateTicketStatus as serviceUpdateTicketStatus,
+  updateTicketPriority as serviceUpdateTicketPriority,
+  assignTicket as serviceAssignTicket,
+} from '../services/ticketService';
 import { fetchITTeams } from '../services/itTeamService';
 import {
   INITIAL_COMPANIES,
@@ -37,6 +64,7 @@ import {
   INITIAL_IT_TEAMS,
 } from '../services/seedData';
 import { useAuth } from './AuthContext';
+import { auth } from '../lib/firebase';
 import { logger } from '../lib/logger';
 
 interface MasterDataContextType {
@@ -78,12 +106,44 @@ interface MasterDataContextType {
   removeDepartment: (id: string, code: string) => Promise<void>;
   removeAllDepartments: () => Promise<void>;
   purgeDemoData: () => Promise<void>;
+
+  // ==========================================
+  // Helpdesk Ticket Firestore Data Structure & Integration
+  // ==========================================
+  ticketSchema: TicketFirestoreSchema;
+  ticketPriorities: TicketPriorityDefinition[];
+  ticketStatuses: TicketStatusDefinition[];
+  helpdeskTickets: Ticket[];
+  ticketMetrics: TicketMetrics;
+  isTicketsLoading: boolean;
+  refreshHelpdeskTickets: () => Promise<void>;
+  createHelpdeskTicket: (payload: {
+    title: string;
+    description: string;
+    category: TicketCategory;
+    priority: TicketPriority;
+    contactNumber?: string;
+    locationId?: string;
+    locationName?: string;
+    assignedTeamId?: string | null;
+    assignedTechnicianId?: string | null;
+    relatedAssetId?: string | null;
+    relatedAssetTag?: string | null;
+  }) => Promise<Ticket>;
+  updateHelpdeskTicketStatus: (ticketId: string, status: TicketStatus, reason?: string) => Promise<Ticket>;
+  updateHelpdeskTicketPriority: (ticketId: string, priority: TicketPriority, reason?: string) => Promise<Ticket>;
+  assignHelpdeskTicket: (
+    ticketId: string,
+    assignedTechnicianId: string | null,
+    assignedTeamId?: string | null,
+    note?: string
+  ) => Promise<Ticket>;
 }
 
 const MasterDataContext = createContext<MasterDataContextType | undefined>(undefined);
 
 export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { effectiveRole } = useAuth();
+  const { user, profile, effectiveRole } = useAuth();
   const [companies, setCompanies] = useState<Company[]>(INITIAL_COMPANIES);
   const [locations, setLocations] = useState<Location[]>(INITIAL_LOCATIONS);
   const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
@@ -92,6 +152,10 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedLocationId, setSelectedLocationId] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSeeding, setIsSeeding] = useState<boolean>(false);
+
+  // Helpdesk Tickets State
+  const [helpdeskTickets, setHelpdeskTickets] = useState<Ticket[]>([]);
+  const [isTicketsLoading, setIsTicketsLoading] = useState<boolean>(false);
 
   const categories = useMemo(() => [
     'HARDWARE',
@@ -104,6 +168,11 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   ], []);
 
   const isAdmin = effectiveRole === 'SUPER_ADMIN' || effectiveRole === 'IT_ADMIN';
+
+  // Helpdesk Ticket Metrics Computed from Realtime Collection
+  const ticketMetrics = useMemo(() => {
+    return computeTicketMetrics(helpdeskTickets);
+  }, [helpdeskTickets]);
 
   const refreshMasterData = useCallback(async () => {
     setIsLoading(true);
@@ -134,12 +203,32 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [isAdmin]);
 
+  // Refresh Helpdesk Tickets via REST API
+  const refreshHelpdeskTickets = useCallback(async () => {
+    setIsTicketsLoading(true);
+    try {
+      const res = await fetchMasterTickets();
+      if (res.tickets && Array.isArray(res.tickets)) {
+        setHelpdeskTickets(res.tickets);
+      }
+    } catch (err) {
+      logger.warn('Failed to refresh helpdesk tickets:', err);
+    } finally {
+      setIsTicketsLoading(false);
+    }
+  }, []);
+
   // Initial load and role change
   useEffect(() => {
     refreshMasterData();
-  }, [refreshMasterData]);
+    if (user || profile) {
+      refreshHelpdeskTickets();
+    } else {
+      setHelpdeskTickets([]);
+    }
+  }, [refreshMasterData, refreshHelpdeskTickets, user, profile]);
 
-  // Firestore real-time subscriptions as secondary sync
+  // Firestore real-time subscriptions as secondary sync for public master data
   useEffect(() => {
     let unsubCompanies: (() => void) | null = null;
     let unsubLocations: (() => void) | null = null;
@@ -213,6 +302,31 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, []);
 
+  // Helpdesk Tickets Real-time Sync (Authenticated Firebase Users Only)
+  useEffect(() => {
+    if (!user && !auth.currentUser) {
+      return;
+    }
+
+    let unsubTickets: (() => void) | null = null;
+    try {
+      unsubTickets = subscribeToHelpdeskTickets(
+        (data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setHelpdeskTickets(data);
+          }
+        },
+        (err) => logger.warn('Helpdesk tickets subscription fallback', { error: String(err) })
+      );
+    } catch (e) {
+      logger.warn('Non-blocking helpdesk tickets subscription notice:', e);
+    }
+
+    return () => {
+      if (unsubTickets) unsubTickets();
+    };
+  }, [user]);
+
   // Filtered active lists for form dropdowns (tickets, assets, registration)
   // Ensures archived master records CANNOT be selected for new records!
   const activeCompanies = useMemo(() => {
@@ -246,6 +360,7 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       await initializeMasterDataIfEmpty();
       await refreshMasterData();
+      await refreshHelpdeskTickets();
     } finally {
       setIsSeeding(false);
     }
@@ -362,6 +477,78 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const purgeDemoData = async () => {
     await serviceClearAllDemoData();
     await refreshMasterData();
+    await refreshHelpdeskTickets();
+  };
+
+  // ==========================================
+  // Helpdesk Ticket Actions
+  // ==========================================
+
+  const createHelpdeskTicket = async (payload: {
+    title: string;
+    description: string;
+    category: TicketCategory;
+    priority: TicketPriority;
+    contactNumber?: string;
+    locationId?: string;
+    locationName?: string;
+    assignedTeamId?: string | null;
+    assignedTechnicianId?: string | null;
+    relatedAssetId?: string | null;
+    relatedAssetTag?: string | null;
+  }): Promise<Ticket> => {
+    const res = await serviceCreateTicket({
+      ...payload,
+      assignedTeamId: payload.assignedTeamId ?? undefined,
+      assignedTechnicianId: payload.assignedTechnicianId ?? undefined,
+      relatedAssetId: payload.relatedAssetId ?? undefined,
+      relatedAssetTag: payload.relatedAssetTag ?? undefined,
+    });
+    if (!res.success || !res.ticket) {
+      throw new Error(res.error || 'Failed to create helpdesk ticket');
+    }
+    await refreshHelpdeskTickets();
+    return res.ticket as Ticket;
+  };
+
+  const updateHelpdeskTicketStatus = async (
+    ticketId: string,
+    status: TicketStatus,
+    reason?: string
+  ): Promise<Ticket> => {
+    const res = await serviceUpdateTicketStatus(ticketId, status);
+    if (!res.success || !res.ticket) {
+      throw new Error(res.error || 'Failed to update ticket status');
+    }
+    await refreshHelpdeskTickets();
+    return res.ticket as Ticket;
+  };
+
+  const updateHelpdeskTicketPriority = async (
+    ticketId: string,
+    priority: TicketPriority,
+    reason?: string
+  ): Promise<Ticket> => {
+    const res = await serviceUpdateTicketPriority(ticketId, priority);
+    if (!res.success || !res.ticket) {
+      throw new Error(res.error || 'Failed to update ticket priority');
+    }
+    await refreshHelpdeskTickets();
+    return res.ticket as Ticket;
+  };
+
+  const assignHelpdeskTicket = async (
+    ticketId: string,
+    assignedTechnicianId: string | null,
+    assignedTeamId?: string | null,
+    note?: string
+  ): Promise<Ticket> => {
+    const res = await serviceAssignTicket(ticketId, assignedTechnicianId);
+    if (!res.success || !res.ticket) {
+      throw new Error(res.error || 'Failed to assign ticket');
+    }
+    await refreshHelpdeskTickets();
+    return res.ticket as Ticket;
   };
 
   return (
@@ -405,6 +592,19 @@ export const MasterDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         removeDepartment,
         removeAllDepartments,
         purgeDemoData,
+
+        // Helpdesk Ticket Firestore Data Structure & Integration
+        ticketSchema: TICKET_FIRESTORE_SCHEMA,
+        ticketPriorities: TICKET_PRIORITIES,
+        ticketStatuses: TICKET_STATUSES,
+        helpdeskTickets,
+        ticketMetrics,
+        isTicketsLoading,
+        refreshHelpdeskTickets,
+        createHelpdeskTicket,
+        updateHelpdeskTicketStatus,
+        updateHelpdeskTicketPriority,
+        assignHelpdeskTicket,
       }}
     >
       {children}

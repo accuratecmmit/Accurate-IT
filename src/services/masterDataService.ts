@@ -21,6 +21,7 @@ import {
   SequenceCounter,
   SystemConfig,
   OperationType,
+  Ticket,
 } from '../types';
 import {
   INITIAL_COMPANIES,
@@ -949,3 +950,51 @@ export async function fetchServerAuditLogs(params?: {
     return { auditLogs: [], error: err.message || 'Network error fetching audit logs' };
   }
 }
+
+// ========================
+// HELPDESK TICKETS CRUD & REALTIME SUBSCRIPTION
+// ========================
+
+export function subscribeToHelpdeskTickets(
+  onUpdate: (tickets: Ticket[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  // Defensive guard: Only attach onSnapshot if user is authenticated with Firebase Auth
+  if (!auth.currentUser) {
+    return () => {};
+  }
+
+  const path = 'tickets';
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tickets: Ticket[] = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() } as Ticket))
+        .filter((t) => !t.isDeleted);
+      onUpdate(tickets);
+    },
+    (error) => {
+      if (onError) onError(error);
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+  );
+}
+
+export async function fetchMasterTickets(): Promise<{ tickets: Ticket[]; error?: string }> {
+  try {
+    const res = await fetch('/api/tickets', {
+      headers: getAuthHeaders(),
+    });
+    const parsed = await parseResponseJson(res);
+    const data = parsed.data || {};
+    if (!res.ok) {
+      return { tickets: [], error: data.error || 'Failed to fetch tickets' };
+    }
+    return { tickets: data.tickets || [] };
+  } catch (err: any) {
+    return { tickets: [], error: err.message || 'Network error fetching tickets' };
+  }
+}
+

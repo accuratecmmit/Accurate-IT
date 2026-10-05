@@ -4,6 +4,7 @@ import {
   validateSchemaIntegrity,
   ModelDefinition,
 } from '../../services/schemaService';
+import { useMasterData } from '../../context/MasterDataContext';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
@@ -24,9 +25,16 @@ import {
   Users,
   HardDrive,
   Ticket,
+  Clock,
+  UserCheck,
+  AlertCircle,
+  Sparkles,
+  ArrowRight,
+  Flame,
 } from 'lucide-react';
 
 export const SchemaInspector: React.FC = () => {
+  const { ticketSchema, ticketPriorities, ticketStatuses, ticketMetrics, helpdeskTickets } = useMasterData();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedModelName, setSelectedModelName] = useState<string>(
@@ -315,6 +323,149 @@ export const SchemaInspector: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {/* Helpdesk Ticket Firestore Architecture & MasterDataContext Integration Banner */}
+          {activeModel.name === 'Ticket' && (
+            <div className="space-y-4 p-5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-indigo-200/60 dark:border-indigo-800/60">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 rounded-lg bg-indigo-600 text-white">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-200">
+                      Helpdesk Ticket Firestore Schema & MasterDataContext Integration
+                    </h3>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-400">
+                      Live Firestore synchronized state in <code className="font-mono bg-indigo-100 dark:bg-indigo-900 px-1 py-0.5 rounded">MasterDataContext</code> with real-time listeners and ABAC rules.
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="indigo" className="text-xs font-mono self-start sm:self-auto">
+                  Path: /tickets/&#123;ticketId&#125;
+                </Badge>
+              </div>
+
+              {/* 4 Pillars of Helpdesk Ticket Schema */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* 1. Priority */}
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                    <Flame className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Priority (5 Tiers)</span>
+                  </div>
+                  <div className="space-y-1 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-slate-500">LOW</span>
+                      <span className="text-slate-400">8h resp / 48h res</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-slate-500">MEDIUM</span>
+                      <span className="text-slate-400">4h resp / 24h res</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-slate-500">HIGH</span>
+                      <span className="text-slate-400">1h resp / 8h res</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-slate-500">CRITICAL</span>
+                      <span className="text-slate-400">30m resp / 4h res</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-slate-500">URGENT</span>
+                      <span className="text-slate-400">15m resp / 2h res</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Status */}
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Status Lifecycle</span>
+                  </div>
+                  <div className="space-y-1 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sky-600">NEW / ASSIGNED</span>
+                      <span className="text-slate-400">Triage phase</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-blue-600">OPEN / IN_PROGRESS</span>
+                      <span className="text-slate-400">Active diagnosis</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-purple-600">WAITING / VENDOR</span>
+                      <span className="text-slate-400">SLA clock paused</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-emerald-600">RESOLVED</span>
+                      <span className="text-slate-400">Verification window</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-slate-600">CLOSED / CANCELLED</span>
+                      <span className="text-rose-500 font-semibold">Terminal states</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Assignee */}
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Assignee Mapping</span>
+                  </div>
+                  <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                    <p><code className="font-mono text-indigo-600">assignedTeamId</code>: FK to IT Team</p>
+                    <p><code className="font-mono text-indigo-600">assignedTeamName</code>: Denormalized</p>
+                    <p><code className="font-mono text-indigo-600">assignedTechnicianId</code>: UID</p>
+                    <p><code className="font-mono text-indigo-600">assignedTechnicianName</code>: Name</p>
+                    <p><code className="font-mono text-indigo-600">assignedTechnicianEmail</code>: Email</p>
+                    <p><code className="font-mono text-indigo-600">assignedAt</code>: Assignment ISO</p>
+                  </div>
+                </div>
+
+                {/* 4. Timestamps */}
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1.5">
+                    <Clock className="w-3.5 h-3.5 text-purple-500" />
+                    <span>Timestamp Audit</span>
+                  </div>
+                  <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                    <p><code className="font-mono text-purple-600">createdAt</code>: Immutable creation</p>
+                    <p><code className="font-mono text-purple-600">updatedAt</code>: Mutation stamp</p>
+                    <p><code className="font-mono text-purple-600">firstRespondedAt</code>: 1st response</p>
+                    <p><code className="font-mono text-purple-600">resolvedAt</code>: State = RESOLVED</p>
+                    <p><code className="font-mono text-purple-600">closedAt</code>: State = CLOSED</p>
+                    <p><code className="font-mono text-purple-600">responseTargetTime</code>: SLA target</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* MasterDataContext Live Sync Status */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-slate-600 dark:text-slate-300">
+                <div className="flex items-center space-x-3">
+                  <span className="flex items-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> MasterDataContext Realtime Sync Active
+                  </span>
+                  <span>•</span>
+                  <span><strong>{ticketMetrics.totalCount}</strong> Total Tickets Loaded</span>
+                  <span>•</span>
+                  <span><strong>{ticketMetrics.openCount}</strong> Open</span>
+                  <span>•</span>
+                  <span><strong>{ticketMetrics.unassignedCount}</strong> Unassigned</span>
+                  {ticketMetrics.slaBreachedCount > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="text-rose-600 font-semibold">{ticketMetrics.slaBreachedCount} SLA Breached</span>
+                    </>
+                  )}
+                </div>
+                <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400">
+                  useMasterData().helpdeskTickets
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Fields Table */}
           <div>
