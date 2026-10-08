@@ -253,7 +253,7 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow get, list: if isITAdmin();
-      allow create: if isSignedIn();
+      allow create: if true; // Allows logging pre-auth and registration events
       allow update, delete: if false; // Immutable append-only
     }
 

@@ -62,7 +62,11 @@ export async function safeFetchJson<T = any>(
   fallbackError = 'Network request failed'
 ): Promise<SafeApiResponse<T>> {
   try {
-    const res = await fetch(input, init);
+    let target = input;
+    if (typeof window === 'undefined' && typeof input === 'string' && input.startsWith('/')) {
+      target = `http://localhost:3000${input}`;
+    }
+    const res = await fetch(target, init);
     return await parseResponseJson<T>(res, fallbackError);
   } catch (err: any) {
     return {

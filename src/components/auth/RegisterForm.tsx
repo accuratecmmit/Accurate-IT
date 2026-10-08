@@ -145,19 +145,19 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
   if (successInfo) {
     return (
       <div className="text-center py-6 px-4 space-y-4">
-        <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto shadow-sm">
-          <Clock className="w-8 h-8 animate-pulse" />
+        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-sm">
+          <CheckCircle2 className="w-8 h-8" />
         </div>
         <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-          Registration Submitted Successfully
+          Account Created Successfully!
         </h3>
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-4 text-xs text-amber-800 dark:text-amber-300 text-left space-y-2">
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl p-4 text-xs text-emerald-800 dark:text-emerald-300 text-left space-y-2">
           <p className="font-semibold flex items-center gap-1.5">
-            <Clock className="w-4 h-4 shrink-0" />
-            Status: PENDING IT ADMIN REVIEW
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            Status: ACTIVE &amp; APPROVED
           </p>
           <p>
-            Your account credentials for <strong>@{username}</strong> have been created in secure pending state. An IT Administrator will review your department, asset tag, and identity before approving access.
+            Welcome, <strong>@{username}</strong>! Under the updated organizational policy, your account has been activated immediately without requiring permission or review from IT or HR. You can start using the portal right now.
           </p>
         </div>
         <div className="pt-2">
@@ -166,7 +166,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
             onClick={onSwitchToLogin}
             className="w-full justify-center"
           >
-            Go to Login
+            Log In Now
           </Button>
         </div>
       </div>
