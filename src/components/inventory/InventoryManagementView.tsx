@@ -10,6 +10,7 @@ import {
 import { fetchITTeams, ITTeam } from '../../services/itTeamService';
 import { fetchAdminUsers } from '../../services/authService';
 import { Asset } from '../../types';
+import { CANONICAL_ASSET_COLUMNS, CanonicalColumnMeta } from '../../utils/assetCalculations';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ExcelImportModal } from './ExcelImportModal';
@@ -44,6 +45,9 @@ import {
   AlertCircle,
   Network,
   HardDrive,
+  ListOrdered,
+  Check,
+  Copy,
 } from 'lucide-react';
 
 export const InventoryManagementView: React.FC = () => {
@@ -74,6 +78,18 @@ export const InventoryManagementView: React.FC = () => {
   const [alertFilter, setAlertFilter] = useState<'ALL' | 'REPLACEMENT' | 'WARRANTY'>('ALL');
   const [includeRetired, setIncludeRetired] = useState(false);
   const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('TABLE');
+  const [tableSubMode, setTableSubMode] = useState<'CANONICAL_42' | 'COMPACT'>('CANONICAL_42');
+  const [selectedTableStage, setSelectedTableStage] = useState<
+    'ALL' | 'IDENTIFIERS_PERSONNEL' | 'HARDWARE_SPECS' | 'LIFECYCLE_CALCS' | 'PROCUREMENT_DATES'
+  >('ALL');
+  const [copiedCell, setCopiedCell] = useState<string | null>(null);
+
+  const handleCopyCell = (key: string, text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedCell(key);
+    setTimeout(() => setCopiedCell(null), 2000);
+  };
 
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -249,7 +265,7 @@ export const InventoryManagementView: React.FC = () => {
     }
   };
 
-  const getAlertBadge = (alertText?: string | null) => {
+  const getAlertBadge = (alertText?: string | null, _type?: 'replacement' | 'warranty') => {
     if (!alertText) return <span className="text-slate-400 text-[11px]">-</span>;
     const lower = alertText.toLowerCase();
     if (lower.includes('expired') || lower.includes('overdue') || lower.includes('critical')) {
@@ -386,6 +402,55 @@ export const InventoryManagementView: React.FC = () => {
             </>
           )}
         </div>
+      </div>
+
+      {/* Canonical 42-Column Flow Banner */}
+      <div className="p-4 bg-gradient-to-r from-indigo-50/90 via-slate-50 to-blue-50/90 dark:from-indigo-950/40 dark:via-slate-900/60 dark:to-blue-950/40 rounded-3xl border border-indigo-200/80 dark:border-indigo-900/60 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-xs shrink-0">
+            <ListOrdered className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-indigo-950 dark:text-indigo-200">
+                Strict 42-Column Canonical Flow Enforced
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                Cols #01 → #42
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              All inventory data flows in canonical order: Identifiers (#1-#5), Personnel & Network (#6-#10), Hardware Identity & Specs (#11-#26), Lifecycle & Calculations (#27-#36), Procurement (#37-#42).
+            </p>
+          </div>
+        </div>
+
+        {viewMode === 'TABLE' && (
+          <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] font-semibold shrink-0">
+            <button
+              onClick={() => setTableSubMode('CANONICAL_42')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+                tableSubMode === 'CANONICAL_42'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <ListOrdered className="w-3.5 h-3.5" />
+              <span>Full 42 Columns (Strict Order)</span>
+            </button>
+            <button
+              onClick={() => setTableSubMode('COMPACT')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all ${
+                tableSubMode === 'COMPACT'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <TableIcon className="w-3.5 h-3.5" />
+              <span>Compact View</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Metrics Ribbon */}
@@ -611,115 +676,382 @@ export const InventoryManagementView: React.FC = () => {
         </div>
       ) : viewMode === 'TABLE' ? (
         /* TABLE SPREADSHEET VIEW */
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Asset ID / Tag</th>
-                  <th className="py-3 px-3">Company</th>
-                  <th className="py-3 px-3">Asset Type</th>
-                  <th className="py-3 px-3">Condition</th>
-                  <th className="py-3 px-3">Assignee / User</th>
-                  <th className="py-3 px-3">Location</th>
-                  <th className="py-3 px-3">IP Adresss</th>
-                  <th className="py-3 px-3">Serial Number</th>
-                  <th className="py-3 px-3">Manufacturer / Model</th>
-                  <th className="py-3 px-3">Depreciated (₹)</th>
-                  <th className="py-3 px-3">Replacement Alert</th>
-                  <th className="py-3 px-3">Warranty Alert</th>
-                  <th className="py-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
-                {filteredAssets.map((asset) => (
-                  <tr
-                    key={asset.id}
-                    onClick={() => setSelectedAssetForDetail(asset)}
-                    className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-colors cursor-pointer"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                          {asset.assetTag}
-                        </span>
-                        {getStatusBadge(asset.status)}
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {asset.company || asset.companyName || 'CORP'}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {asset.assetType}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        {asset.condition || 'Good'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {asset.assignedUserName || asset.assignedEmployeeName ? (
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3 text-indigo-500" />
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {asset.assignedEmployeeName || asset.assignedUserName}
-                          </span>
+        <div className="space-y-3">
+          {/* Canonical 42-Column Stage Navigator (Only in Canonical 42 Mode) */}
+          {tableSubMode === 'CANONICAL_42' && (
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/50 rounded-2xl">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-600 text-white shadow-xs">
+                  <ListOrdered className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                    Strict 42-Column Canonical Flow (#01 to #42)
+                  </span>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    Filter visible column stages or inspect all 42 specifications in sequence
+                  </p>
+                </div>
+              </div>
+
+              {/* Stage Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTableStage('ALL')}
+                  className={`px-2.5 py-1 rounded-xl transition-all ${
+                    selectedTableStage === 'ALL'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  All 42 Columns (1-42)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTableStage('IDENTIFIERS_PERSONNEL')}
+                  className={`px-2.5 py-1 rounded-xl transition-all ${
+                    selectedTableStage === 'IDENTIFIERS_PERSONNEL'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  1-10: Identifiers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTableStage('HARDWARE_SPECS')}
+                  className={`px-2.5 py-1 rounded-xl transition-all ${
+                    selectedTableStage === 'HARDWARE_SPECS'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  11-26: Hardware Specs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTableStage('LIFECYCLE_CALCS')}
+                  className={`px-2.5 py-1 rounded-xl transition-all ${
+                    selectedTableStage === 'LIFECYCLE_CALCS'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  27-36: Lifecycle & Alerts
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTableStage('PROCUREMENT_DATES')}
+                  className={`px-2.5 py-1 rounded-xl transition-all ${
+                    selectedTableStage === 'PROCUREMENT_DATES'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  37-42: Procurement & AMC
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto max-h-[72vh]">
+              {tableSubMode === 'CANONICAL_42' ? (
+                /* STRICT 42-COLUMN CANONICAL TABLE */
+                <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300 border-collapse">
+                  <thead className="bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider sticky top-0 z-20 backdrop-blur-xs">
+                    <tr>
+                      {/* Fixed Left Header Column: Asset ID & Actions */}
+                      <th className="py-3 px-4 sticky left-0 z-30 bg-slate-100 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xs whitespace-nowrap min-w-[200px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-indigo-600 text-white">#01</span>
+                          <span>Asset ID & Actions</span>
                         </div>
-                      ) : (
-                        <span className="text-slate-400 italic">In Pool</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {asset.location || asset.locationName || 'N/A'}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-[11px] whitespace-nowrap text-indigo-600 dark:text-indigo-400 font-semibold">
-                      {asset.ipAddress || (asset as any)['IP Adresss'] || '-'}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-[11px] whitespace-nowrap">
-                      {asset.serialNumber}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {asset.manufacturer || 'OEM'} {asset.model}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
-                      {asset.depreciatedValue !== undefined && asset.depreciatedValue !== null
-                        ? `₹${asset.depreciatedValue.toLocaleString()}`
-                        : '-'}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {getAlertBadge(asset.replacementAlert)}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {getAlertBadge(asset.warrantyAlert)}
-                    </td>
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedAssetForDetail(asset)}
-                          className="px-2 py-1 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg"
-                        >
-                          View Details
-                        </button>
-                        {canManage && asset.status !== 'Retired' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAssetToEdit(asset);
-                              setIsAssetFormOpen(true);
-                            }}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                            title="Edit Asset"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </th>
+
+                      {/* Remaining 41 Canonical Columns (or filtered stage) */}
+                      {CANONICAL_ASSET_COLUMNS
+                        .filter((col) => col.index > 1)
+                        .filter((col) => selectedTableStage === 'ALL' || col.category === selectedTableStage)
+                        .map((col) => {
+                          const pillTheme =
+                            col.category === 'IDENTIFIERS_PERSONNEL'
+                              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                              : col.category === 'HARDWARE_SPECS'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                              : col.category === 'LIFECYCLE_CALCS'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+
+                          return (
+                            <th
+                              key={col.index}
+                              className="py-3 px-3 whitespace-nowrap border-r border-slate-100 dark:border-slate-800/60 font-semibold"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded ${pillTheme}`}>
+                                  #{col.index < 10 ? `0${col.index}` : col.index}
+                                </span>
+                                <span>{col.label}</span>
+                              </div>
+                            </th>
+                          );
+                        })}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
+                    {filteredAssets.map((asset) => (
+                      <tr
+                        key={asset.id}
+                        className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-colors group"
+                      >
+                        {/* Sticky Left Fixed Column: Asset Tag & Quick Actions */}
+                        <td className="py-2.5 px-4 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-indigo-50/50 dark:group-hover:bg-slate-850 border-r border-slate-200 dark:border-slate-700 shadow-xs whitespace-nowrap min-w-[200px]">
+                          <div className="flex items-center justify-between gap-2">
+                            <div
+                              onClick={() => setSelectedAssetForDetail(asset)}
+                              className="flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                {asset.assetTag}
+                              </span>
+                              {getStatusBadge(asset.status)}
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedAssetForDetail(asset)}
+                                className="px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/60 dark:hover:bg-indigo-950 rounded"
+                                title="Open 42-Column Asset Detail Modal"
+                              >
+                                View
+                              </button>
+                              {canManage && asset.status !== 'Retired' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAssetToEdit(asset);
+                                    setIsAssetFormOpen(true);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded"
+                                  title="Edit Asset"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Remaining 41 Canonical Columns in Exact Order */}
+                        {CANONICAL_ASSET_COLUMNS
+                          .filter((col) => col.index > 1)
+                          .filter((col) => selectedTableStage === 'ALL' || col.category === selectedTableStage)
+                          .map((col) => {
+                            const rawVal = col.getValue(asset);
+                            const stringVal = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+                            const hasVal = Boolean(stringVal && stringVal !== 'N/A' && stringVal !== '-');
+                            const cellKey = `${asset.id}_col_${col.index}`;
+
+                            return (
+                              <td
+                                key={col.index}
+                                onClick={() => setSelectedAssetForDetail(asset)}
+                                className="py-2.5 px-3 whitespace-nowrap border-r border-slate-100 dark:border-slate-800/60 cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  {col.format === 'currency' ? (
+                                    hasVal && !isNaN(Number(rawVal)) ? (
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        ₹{Number(rawVal).toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 dark:text-slate-600 italic">-</span>
+                                    )
+                                  ) : col.format === 'badge' ? (
+                                    col.name === 'Replacement Alert' ? (
+                                      getAlertBadge(stringVal, 'replacement') || <span className="text-slate-300 dark:text-slate-600">-</span>
+                                    ) : col.name === 'Warranty Alert' ? (
+                                      getAlertBadge(stringVal, 'warranty') || <span className="text-slate-300 dark:text-slate-600">-</span>
+                                    ) : col.name === 'Condition' ? (
+                                      <Badge variant={stringVal === 'Good' || stringVal === 'Working' ? 'success' : stringVal === 'Damaged' || stringVal === 'Scrap' ? 'danger' : 'neutral'}>
+                                        {stringVal || 'Good'}
+                                      </Badge>
+                                    ) : col.name === 'New (NH)/ Old (SH)' ? (
+                                      <Badge variant={stringVal.includes('New') ? 'info' : 'warning'}>
+                                        {stringVal || 'New (NH)'}
+                                      </Badge>
+                                    ) : col.name === 'Asset Type' ? (
+                                      <Badge variant="purple">{stringVal}</Badge>
+                                    ) : (
+                                      <Badge variant="neutral">{stringVal || '-'}</Badge>
+                                    )
+                                  ) : col.format === 'mono' ? (
+                                    hasVal ? (
+                                      <span className="font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                        {stringVal}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 dark:text-slate-600 italic">-</span>
+                                    )
+                                  ) : col.format === 'date' ? (
+                                    hasVal ? (
+                                      <span className="text-[11px] text-slate-700 dark:text-slate-300">
+                                        {stringVal}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 dark:text-slate-600 italic">-</span>
+                                    )
+                                  ) : (
+                                    hasVal ? (
+                                      <span className="text-[11px] text-slate-700 dark:text-slate-300">
+                                        {stringVal}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 dark:text-slate-600 italic">-</span>
+                                    )
+                                  )}
+
+                                  {/* Quick copy cell value */}
+                                  {hasVal && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopyCell(cellKey, stringVal);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-indigo-600 transition-opacity"
+                                      title={`Copy ${col.label}`}
+                                    >
+                                      {copiedCell === cellKey ? (
+                                        <Check className="w-3 h-3 text-emerald-500" />
+                                      ) : (
+                                        <Copy className="w-3 h-3" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                /* COMPACT 12-COLUMN SUMMARY TABLE */
+                <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                  <thead className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Asset ID / Tag</th>
+                      <th className="py-3 px-3">Company</th>
+                      <th className="py-3 px-3">Asset Type</th>
+                      <th className="py-3 px-3">Condition</th>
+                      <th className="py-3 px-3">Assignee / User</th>
+                      <th className="py-3 px-3">Location</th>
+                      <th className="py-3 px-3">IP Adresss</th>
+                      <th className="py-3 px-3">Serial Number</th>
+                      <th className="py-3 px-3">Manufacturer / Model</th>
+                      <th className="py-3 px-3">Depreciated (₹)</th>
+                      <th className="py-3 px-3">Replacement Alert</th>
+                      <th className="py-3 px-3">Warranty Alert</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
+                    {filteredAssets.map((asset) => (
+                      <tr
+                        key={asset.id}
+                        onClick={() => setSelectedAssetForDetail(asset)}
+                        className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-colors cursor-pointer"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                              {asset.assetTag}
+                            </span>
+                            {getStatusBadge(asset.status)}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {asset.company || asset.companyName || 'CORP'}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {asset.assetType}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {asset.condition || 'Good'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {asset.assignedUserName || asset.assignedEmployeeName ? (
+                            <div className="flex items-center gap-1">
+                              <User className="w-3 h-3 text-indigo-500" />
+                              <span className="font-bold text-slate-800 dark:text-slate-200">
+                                {asset.assignedEmployeeName || asset.assignedUserName}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic">In Pool</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {asset.location || asset.locationName || 'N/A'}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[11px] whitespace-nowrap text-indigo-600 dark:text-indigo-400 font-semibold">
+                          {asset.ipAddress || (asset as any)['IP Adresss'] || '-'}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[11px] whitespace-nowrap">
+                          {asset.serialNumber}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {asset.manufacturer || 'OEM'} {asset.model}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
+                          {asset.depreciatedValue !== undefined && asset.depreciatedValue !== null
+                            ? `₹${asset.depreciatedValue.toLocaleString()}`
+                            : '-'}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {getAlertBadge(asset.replacementAlert)}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {getAlertBadge(asset.warrantyAlert)}
+                        </td>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedAssetForDetail(asset)}
+                              className="px-2 py-1 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg"
+                            >
+                              View Details
+                            </button>
+                            {canManage && asset.status !== 'Retired' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAssetToEdit(asset);
+                                  setIsAssetFormOpen(true);
+                                }}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                title="Edit Asset"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       ) : (

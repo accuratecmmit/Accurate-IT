@@ -179,6 +179,115 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
         </div>
       )}
 
+      {/* Quick Sign-In Role Selector */}
+      <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+          <span className="flex items-center gap-1.5 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            1-Click Demo & Enterprise Sign-In
+          </span>
+          <span className="text-[10px] text-slate-400 font-normal">Select to autofill</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-left">
+          <button
+            type="button"
+            disabled={isLocked}
+            onClick={() => {
+              setUsername('Sameer Tupe');
+              setPassword('Acculate@');
+              setErrorMessage(null);
+            }}
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 transition-all text-left shadow-2xs group"
+          >
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600">
+              Sameer Tupe
+            </div>
+            <div className="text-[9px] font-semibold text-purple-600 dark:text-purple-400">Super Admin</div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLocked}
+            onClick={() => {
+              setUsername('Rahul Prasad');
+              setPassword('Accurate@');
+              setErrorMessage(null);
+            }}
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 transition-all text-left shadow-2xs group"
+          >
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600">
+              Rahul Prasad
+            </div>
+            <div className="text-[9px] font-semibold text-purple-600 dark:text-purple-400">Super Admin</div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLocked}
+            onClick={() => {
+              setUsername('accurateadmin');
+              setPassword('Admin#2026!');
+              setErrorMessage(null);
+            }}
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 transition-all text-left shadow-2xs group"
+          >
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600">
+              accurateadmin
+            </div>
+            <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400">Chief Admin</div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLocked}
+            onClick={() => {
+              setUsername('itadmin');
+              setPassword('Admin#2026!');
+              setErrorMessage(null);
+            }}
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/30 transition-all text-left shadow-2xs group"
+          >
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600">
+              Priya Sharma
+            </div>
+            <div className="text-[9px] font-semibold text-blue-600 dark:text-blue-400">IT Administrator</div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLocked}
+            onClick={() => {
+              setUsername('technician');
+              setPassword('Tech#2026!');
+              setErrorMessage(null);
+            }}
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-400 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/30 transition-all text-left shadow-2xs group"
+          >
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-600">
+              Amit Verma
+            </div>
+            <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">IT Technician</div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isLocked}
+            onClick={() => {
+              setUsername('rahul');
+              setPassword('User#2026!');
+              setErrorMessage(null);
+            }}
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 hover:bg-amber-50/40 dark:hover:bg-amber-950/30 transition-all text-left shadow-2xs group"
+          >
+            <div className="text-[11px] font-bold text-slate-800 dark:text-slate-100 group-hover:text-amber-600">
+              Rahul Sharma
+            </div>
+            <div className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">Employee</div>
+          </button>
+        </div>
+      </div>
+
       {/* Login Form Fields */}
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
@@ -193,7 +302,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
               disabled={isLocked}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. rahul or itadmin"
+              placeholder="e.g. Sameer Tupe, accurateadmin, itadmin, or rahul"
               className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 disabled:opacity-50"
             />
           </div>

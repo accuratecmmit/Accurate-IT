@@ -678,6 +678,7 @@ export interface Asset {
   id: string;
   // Non-reusable unique asset identifier (e.g. AST-00801 / Asset Number)
   assetTag: string;
+  assetNumber?: string;
   serialNumber: string;
   name: string;
   assetType: AssetType;

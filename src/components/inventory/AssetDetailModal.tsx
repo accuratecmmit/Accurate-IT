@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Asset, AssetAssignmentRecord, AssetCustomField } from '../../types';
 import { updateAsset, deleteOrRetireAsset } from '../../services/assetService';
+import { CANONICAL_ASSET_COLUMNS, CanonicalColumnMeta } from '../../utils/assetCalculations';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import {
@@ -27,6 +28,9 @@ import {
   AlertCircle,
   Network,
   Wrench,
+  Copy,
+  Check,
+  ListOrdered,
 } from 'lucide-react';
 
 interface AssetDetailModalProps {
@@ -63,6 +67,17 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
 
   // Retire confirm dialog
   const [showRetireConfirm, setShowRetireConfirm] = useState(false);
+
+  // 42 Canonical Order Stage Filter
+  const [selectedStage, setSelectedStage] = useState<'ALL' | 'IDENTIFIERS_PERSONNEL' | 'HARDWARE_SPECS' | 'LIFECYCLE_CALCS' | 'PROCUREMENT_DATES'>('ALL');
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const handleCopyValue = (index: number, val: string) => {
+    if (!val) return;
+    navigator.clipboard.writeText(val);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
 
   if (!isOpen || !asset) return null;
 
@@ -275,245 +290,241 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
 
         {/* Modal Scrollable Content */}
         <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-          {/* TAB 1: DETAILS */}
+          {/* TAB 1: DETAILS (STRICT 42-COLUMN ORDER FLOW) */}
           {activeTab === 'DETAILS' && (
             <div className="space-y-4">
+              {/* Order Flow Banner & Stage Navigator */}
+              <div className="p-4 bg-gradient-to-r from-indigo-50/80 via-slate-50 to-blue-50/80 dark:from-indigo-950/40 dark:via-slate-900/60 dark:to-blue-950/40 border border-indigo-200/80 dark:border-indigo-900/60 rounded-3xl space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-xs">
+                      <ListOrdered className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-indigo-950 dark:text-indigo-200">
+                        Strict 42-Column Canonical Order Flow
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        All computer hardware specifications, assignments, warranties, and financial attributes follow standard sequence #1 through #42.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 self-start sm:self-auto">
+                    42 Canonical Fields Active
+                  </span>
+                </div>
+
+                {/* Stage Filter Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStage('ALL')}
+                    className={`px-2.5 py-1 rounded-xl transition-all ${
+                      selectedStage === 'ALL'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    All 42 Columns (1-42)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStage('IDENTIFIERS_PERSONNEL')}
+                    className={`px-2.5 py-1 rounded-xl transition-all ${
+                      selectedStage === 'IDENTIFIERS_PERSONNEL'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    1-10: Identifiers & Personnel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStage('HARDWARE_SPECS')}
+                    className={`px-2.5 py-1 rounded-xl transition-all ${
+                      selectedStage === 'HARDWARE_SPECS'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    11-26: Hardware Specs & Peripherals
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStage('LIFECYCLE_CALCS')}
+                    className={`px-2.5 py-1 rounded-xl transition-all ${
+                      selectedStage === 'LIFECYCLE_CALCS'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    27-36: Lifecycle, Warranties & Analytics
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStage('PROCUREMENT_DATES')}
+                    className={`px-2.5 py-1 rounded-xl transition-all ${
+                      selectedStage === 'PROCUREMENT_DATES'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    37-42: Procurement, AMC & Dates
+                  </button>
+                </div>
+              </div>
+
               {/* Alert Ribbons */}
               {(asset.replacementAlert || asset.warrantyAlert) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {asset.replacementAlert && (
                     <div className="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                        Replacement Status:
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900 text-amber-900 dark:text-amber-200">#35</span>
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          Replacement Alert:
+                        </span>
+                      </div>
                       {getAlertBadge(asset.replacementAlert, 'replacement')}
                     </div>
                   )}
                   {asset.warrantyAlert && (
                     <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 flex items-center justify-between">
-                      <span className="text-xs font-bold text-blue-900 dark:text-blue-200">
-                        Warranty Status:
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-200/80 dark:bg-blue-900 text-blue-900 dark:text-blue-200">#36</span>
+                        <span className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                          Warranty Alert:
+                        </span>
+                      </div>
                       {getAlertBadge(asset.warrantyAlert, 'warranty')}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Assignment Status Card */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-indigo-500" />
-                    Current Personnel Assignment (1-to-1 Rule)
-                  </span>
-                  {asset.assignedUserName || asset.assignedEmployeeName ? (
-                    <Badge variant="success">Currently Assigned</Badge>
-                  ) : (
-                    <Badge variant="neutral">In Inventory Pool</Badge>
-                  )}
-                </div>
+              {/* Sequential 42 Fields Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {CANONICAL_ASSET_COLUMNS
+                  .filter((col) => selectedStage === 'ALL' || col.category === selectedStage)
+                  .map((col) => {
+                    const rawVal = col.getValue(asset);
+                    const stringVal = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+                    const hasValue = Boolean(stringVal && stringVal !== 'N/A' && stringVal !== '-');
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Assigned Employee Name</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                      {asset.assignedEmployeeName || asset.assignedUserName || 'None (In Stock Pool)'}
-                    </span>
-                  </div>
+                    // Badge theme based on column stage
+                    const stageColor =
+                      col.category === 'IDENTIFIERS_PERSONNEL'
+                        ? 'border-indigo-200/70 dark:border-indigo-900/50 bg-indigo-50/20'
+                        : col.category === 'HARDWARE_SPECS'
+                        ? 'border-blue-200/70 dark:border-blue-900/50 bg-blue-50/20'
+                        : col.category === 'LIFECYCLE_CALCS'
+                        ? 'border-amber-200/70 dark:border-amber-900/50 bg-amber-50/20'
+                        : 'border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/20';
 
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Asset User Name</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm font-mono">
-                      {asset.assetUserName || asset.assignedUserName || 'None'}
-                    </span>
-                  </div>
+                    const pillColor =
+                      col.category === 'IDENTIFIERS_PERSONNEL'
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300'
+                        : col.category === 'HARDWARE_SPECS'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300'
+                        : col.category === 'LIFECYCLE_CALCS'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
+                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300';
 
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Assignment Date</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {asset.assignmentDate
-                        ? new Date(asset.assignmentDate).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                    return (
+                      <div
+                        key={col.index}
+                        className={`p-3 rounded-2xl border bg-white dark:bg-slate-900/70 shadow-2xs space-y-2 flex flex-col justify-between transition-all hover:border-indigo-400/80 hover:shadow-xs ${stageColor}`}
+                      >
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded-md ${pillColor}`}>
+                              #{col.index < 10 ? `0${col.index}` : col.index}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                              {col.label}
+                            </span>
+                          </div>
 
-              {/* Hardware Specifications Grid */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Cpu className="w-4 h-4 text-indigo-500" />
-                  Hardware & Component Specifications
-                </span>
+                          {hasValue && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyValue(col.index, stringVal)}
+                              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              title={`Copy ${col.label}`}
+                            >
+                              {copiedIndex === col.index ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Manufacturer</span>
-                    <span className="font-semibold">{asset.manufacturer || 'OEM'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Model</span>
-                    <span className="font-semibold">{asset.model || 'Standard Model'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Processor</span>
-                    <span className="font-semibold">{asset.processor || asset.specifications?.cpu || 'Standard CPU'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">IP Adresss</span>
-                    <span className="font-mono text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                      {asset.ipAddress || (asset as any)['IP Adresss'] || 'N/A'}
-                    </span>
-                  </div>
+                        {/* Value Display */}
+                        <div className="pt-0.5">
+                          {col.format === 'currency' ? (
+                            hasValue && !isNaN(Number(rawVal)) ? (
+                              <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                                ₹{Number(rawVal).toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">N/A</span>
+                            )
+                          ) : col.format === 'badge' ? (
+                            col.name === 'Replacement Alert' ? (
+                              getAlertBadge(stringVal, 'replacement') || <span className="text-slate-400 text-xs italic">Normal / N/A</span>
+                            ) : col.name === 'Warranty Alert' ? (
+                              getAlertBadge(stringVal, 'warranty') || <span className="text-slate-400 text-xs italic">N/A</span>
+                            ) : col.name === 'Condition' ? (
+                              <Badge variant={stringVal === 'Good' || stringVal === 'Working' ? 'success' : stringVal === 'Damaged' || stringVal === 'Scrap' ? 'danger' : 'neutral'}>
+                                {stringVal || 'Good'}
+                              </Badge>
+                            ) : col.name === 'New (NH)/ Old (SH)' ? (
+                              <Badge variant={stringVal.includes('New') ? 'info' : 'warning'}>
+                                {stringVal || 'New (NH)'}
+                              </Badge>
+                            ) : col.name === 'Asset Type' ? (
+                              <Badge variant="purple">{stringVal}</Badge>
+                            ) : (
+                              <Badge variant="neutral">{stringVal || '-'}</Badge>
+                            )
+                          ) : col.format === 'mono' ? (
+                            hasValue ? (
+                              <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 break-all">
+                                {stringVal}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">Not assigned</span>
+                            )
+                          ) : col.format === 'date' ? (
+                            hasValue ? (
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{stringVal}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">Not set</span>
+                            )
+                          ) : (
+                            /* Standard Text / Number */
+                            hasValue ? (
+                              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 break-words">
+                                {stringVal}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">None recorded</span>
+                            )
+                          )}
+                        </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">RAM</span>
-                    <span className="font-semibold">{asset.ram || (asset.specifications?.ramGb ? `${asset.specifications.ramGb} GB` : 'N/A')}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Storage</span>
-                    <span className="font-semibold">{asset.storage || (asset.specifications?.storageGb ? `${asset.specifications.storageGb} GB` : 'N/A')}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Windows Version</span>
-                    <span className="font-semibold">{asset.windowsVersion || asset.specifications?.os || 'Windows 11'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">MS Office</span>
-                    <span className="font-semibold">{asset.msOffice || 'N/A'}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">EScan Antivirus</span>
-                    <span className="font-semibold">{asset.escan || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Motherboard</span>
-                    <span className="font-semibold">{asset.motherboard || 'OEM System Board'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Display</span>
-                    <span className="font-semibold">{asset.display || 'Built-in / Standard'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Display Size</span>
-                    <span className="font-semibold">{asset.displaySize || 'N/A'}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">LAN Card</span>
-                    <span className="font-semibold">{asset.lanCard || 'Gigabit Ethernet'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">UPS / Battery</span>
-                    <span className="font-semibold">{asset.upsBattery || 'Standard Battery'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Financial & Valuation Grid */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4 text-emerald-500" />
-                  Financial, Procurement & Valuation
-                </span>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Purchase Cost (INR)</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                      {asset.purchaseCost !== undefined && asset.purchaseCost !== null
-                        ? `₹${asset.purchaseCost.toLocaleString()}`
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Depreciated Value (INR)</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                      {asset.depreciatedValue !== undefined && asset.depreciatedValue !== null
-                        ? `₹${asset.depreciatedValue.toLocaleString()}`
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Vendor</span>
-                    <span className="font-semibold">{asset.vendor || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Invoice Number</span>
-                    <span className="font-mono text-xs font-semibold">{asset.invoiceNumber || 'N/A'}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Purchase Date</span>
-                    <span>{asset.purchaseDate || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Asset Age (Yrs)</span>
-                    <span className="font-bold">{asset.assetAgeYears !== undefined ? `${asset.assetAgeYears} yrs` : 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Expected Life (Yrs)</span>
-                    <span className="font-semibold">{asset.expectedLifeYears ? `${asset.expectedLifeYears} yrs` : '5 yrs'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Expected Replacement</span>
-                    <span className="font-semibold">{asset.expectedReplacementDate || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Maintenance, Warranty & AMC */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Shield className="w-4 h-4 text-indigo-500" />
-                  Warranty, AMC & Maintenance Lifecycle
-                </span>
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Warranty Start</span>
-                    <span>{asset.warrantyStart || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Warranty End</span>
-                    <span>{asset.warrantyEnd || asset.warrantyExpiryDate || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">AMC Start</span>
-                    <span>{asset.amcStart || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">AMC End</span>
-                    <span>{asset.amcEnd || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Last Service Date</span>
-                    <span>{asset.lastServiceDate || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Remarks & Notes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 block">Remarks</span>
-                  <p className="text-slate-600 dark:text-slate-300 italic">
-                    {asset.remarks || 'No remarks recorded for this asset.'}
-                  </p>
-                </div>
-
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 block">Administrative Notes</span>
-                  <p className="text-slate-600 dark:text-slate-300 italic">
-                    {asset.notes || 'No notes recorded.'}
-                  </p>
-                </div>
+                        {/* Subtle Footer hint */}
+                        <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
+                          {col.categoryLabel.split(':')[1]?.trim() || col.categoryLabel}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
 
               {/* Custom Fields Extensibility */}
@@ -522,11 +533,11 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                   <div className="flex items-center gap-1.5">
                     <Sliders className="w-4 h-4 text-indigo-500" />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Super Admin Custom Fields
+                      Super Admin Custom Dynamic Fields (Extensible Schema)
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                     {customFields.map((cf) => {
                       const val = asset.customFields ? asset.customFields[cf.fieldKey] : undefined;
                       return (
