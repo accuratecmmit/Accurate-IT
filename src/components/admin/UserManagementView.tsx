@@ -393,12 +393,12 @@ export const UserManagementView: React.FC = () => {
       {/* ========================================== */}
       {activeTab === 'PENDING' && (
         <div className="space-y-4">
-          <div className="p-4 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
-            <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl flex items-start gap-3 text-xs text-emerald-900 dark:text-emerald-200">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-sm">Registration Approval Workflow</p>
-              <p className="mt-0.5 text-amber-800 dark:text-amber-300">
-                Newly registered employees enter <em>Pending</em> state and cannot sign in until an IT Administrator reviews their 9 credentials and grants approval. If rejecting, a mandatory reason is required by security policy.
+              <p className="font-bold text-sm">Open Registration Policy Active</p>
+              <p className="mt-0.5 text-emerald-800 dark:text-emerald-300">
+                Under the updated organizational policy, new users do not need permission from IT or HR; they can create accounts and immediately start using the system. Any previously pending records can be managed or verified below.
               </p>
             </div>
           </div>

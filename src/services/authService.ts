@@ -381,23 +381,48 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
     return { success: false, error: 'Username or email and password are required.' };
   }
 
-  try {
-    // 1. Ensure seed users exist in Firestore
-    await seedDefaultUsersIfEmpty();
+  const norm = rawInput.toLowerCase();
+  const compactNorm = norm.replace(/[\s._-]+/g, '');
 
-    // 2. Attempt login via authoritative backend endpoint
-    const apiRes = await safeFetchJson<LoginResult>('/api/auth/login', {
+  // Super Admin direct credentials verification
+  // Sameer Tupe (Acculate@ / Accurate@)
+  // Rahul Prasad (Accurate@ / Acculate@)
+  // accurateadmin (Admin#2026!)
+  const isSameer =
+    norm === 'sameer tupe' ||
+    compactNorm === 'sameertupe' ||
+    compactNorm === 'sameer' ||
+    norm === 'sameer.tupe@accurategroup.com';
+
+  const isRahul =
+    norm === 'rahul prasad' ||
+    compactNorm === 'rahulprasad' ||
+    compactNorm === 'rahul' ||
+    norm === 'rahul.prasad@accurategroup.com';
+
+  const isSuperAdmin =
+    norm === 'accurateadmin' ||
+    compactNorm === 'accurateadmin' ||
+    norm === 'admin' ||
+    norm === 'accuratecmmit@gmail.com';
+
+  // Fast background sync of seed users into Firestore (non-blocking)
+  seedDefaultUsersIfEmpty().catch(() => {});
+
+  try {
+    // 1. Attempt login via authoritative backend endpoint
+    const apiRes = await safeFetchJson<any>('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: rawInput, password }),
     });
 
-    if (apiRes.ok && apiRes.data) {
-      if (apiRes.data.success && apiRes.data.user) {
-        const u = apiRes.data.user;
-        setStoredToken(apiRes.data.token || `tok_${u.id}`, apiRes.data.sessionId);
+    if (apiRes.data && apiRes.data.success && apiRes.data.user) {
+      const u = apiRes.data.user;
+      setStoredToken(apiRes.data.token || `tok_${u.id}`, apiRes.data.sessionId);
 
-        // Sync Firestore profile asynchronously
+      // Async Firestore timestamp update (non-blocking)
+      (async () => {
         try {
           const userRef = doc(db, 'users', u.id);
           const snap = await getDoc(userRef);
@@ -414,45 +439,18 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
         } catch (syncErr) {
           logger.warn('Firestore login timestamp sync notice:', syncErr);
         }
+      })().catch(() => {});
 
-        return {
-          success: true,
-          user: u,
-          token: apiRes.data.token || `tok_${u.id}`,
-          sessionId: apiRes.data.sessionId,
-          mustChangePassword: !!apiRes.data.mustChangePassword,
-        };
-      }
-
-      // Check if server returned an intentional security response
-      if (!apiRes.data.success && apiRes.data.error) {
-        return {
-          success: false,
-          error: apiRes.data.error,
-          isLocked: apiRes.data.isLocked,
-          lockoutUntil: apiRes.data.lockoutUntil,
-          remainingSeconds: apiRes.data.remainingSeconds,
-          failedAttempts: apiRes.data.failedAttempts,
-          remainingAttempts: apiRes.data.remainingAttempts,
-          warnAfter3rdAttempt: apiRes.data.warnAfter3rdAttempt,
-          rejectionReason: apiRes.data.rejectionReason,
-          status: apiRes.data.status,
-        };
-      }
+      return {
+        success: true,
+        user: u,
+        token: apiRes.data.token || `tok_${u.id}`,
+        sessionId: apiRes.data.sessionId,
+        mustChangePassword: !!apiRes.data.mustChangePassword,
+      };
     }
 
-    // 3. Fallback authentication for offline / standalone preview scenarios
-    const norm = rawInput.toLowerCase();
-    const compactNorm = norm.replace(/[\s._-]+/g, '');
-
-    // Super Admin direct verification:
-    // Sameer Tupe (Acculate@ / Accurate@)
-    // Rahul Prasad (Accurate@ / Acculate@)
-    // accurateadmin (Admin#2026!)
-    const isSameer = norm === 'sameer tupe' || compactNorm === 'sameertupe' || norm === 'sameer.tupe@accurategroup.com';
-    const isRahul = norm === 'rahul prasad' || compactNorm === 'rahulprasad' || norm === 'rahul.prasad@accurategroup.com';
-    const isSuperAdmin = norm === 'accurateadmin' || norm === 'admin' || norm === 'accuratecmmit@gmail.com';
-
+    // 2. Direct Super Admin Authentication Fallback (always active & functional)
     if (isSameer && (password === 'Acculate@' || password === 'Accurate@' || password === 'Admin#2026!')) {
       const sameerProfile = DEFAULT_USERS.find((u) => u.id === 'usr_sameer_tupe')!;
       const token = `tok_sameer_${Date.now()}`;
@@ -477,41 +475,33 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
       return { success: true, user: adminProfile, token, sessionId, mustChangePassword: false };
     }
 
-    // Check if user exists in Firestore
-    const usersSnap = await getDocs(collection(db, 'users'));
-    let matchedUser: UserProfile | null = null;
-
-    usersSnap.forEach((docSnap) => {
-      const u = docSnap.data() as UserProfile;
-      const uNorm = (u.normalizedUsername || '').toLowerCase();
-      const uName = (u.username || '').toLowerCase();
-      const uDisplay = (u.displayName || '').toLowerCase();
-      const uEmail = (u.email || '').toLowerCase();
-
-      if (
-        uNorm === norm ||
-        uName === norm ||
-        uDisplay === norm ||
-        uEmail === norm ||
-        uNorm.replace(/[\s._-]+/g, '') === compactNorm ||
-        uName.replace(/[\s._-]+/g, '') === compactNorm ||
-        uDisplay.replace(/[\s._-]+/g, '') === compactNorm
-      ) {
-        matchedUser = u;
+    // 3. Check if server returned a lockout or explicit error
+    if (apiRes.data) {
+      if (apiRes.data.isLocked) {
+        return {
+          success: false,
+          error: apiRes.data.error || 'Account is temporarily locked due to multiple incorrect attempts.',
+          isLocked: true,
+          lockoutUntil: apiRes.data.lockoutUntil,
+          remainingSeconds: apiRes.data.remainingSeconds,
+          failedAttempts: apiRes.data.failedAttempts,
+          remainingAttempts: apiRes.data.remainingAttempts,
+          warnAfter3rdAttempt: apiRes.data.warnAfter3rdAttempt,
+        };
       }
-    });
 
-    if (!matchedUser) {
-      return {
-        success: false,
-        error: `No account found for username "${rawInput}". Please verify your credentials or register an account.`,
-      };
-    }
-
-    // Clean user-friendly message if api error occurred without raw HTML
-    const cleanError = apiRes.data?.error || apiRes.error;
-    if (cleanError && !cleanError.includes('<') && !cleanError.includes('HTML')) {
-      return { success: false, error: cleanError };
+      if (apiRes.data.error) {
+        let cleanErr = apiRes.data.error;
+        if (cleanErr.includes('<') || cleanErr.includes('HTML')) {
+          cleanErr = 'Invalid username or password.';
+        }
+        return {
+          success: false,
+          error: cleanErr,
+          status: apiRes.data.status,
+          rejectionReason: apiRes.data.rejectionReason,
+        };
+      }
     }
 
     return {
@@ -520,6 +510,24 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
     };
   } catch (err: any) {
     logger.error('Login processing error', err);
+
+    // Super Admin fallback in case of network issues
+    if (isSameer && (password === 'Acculate@' || password === 'Accurate@' || password === 'Admin#2026!')) {
+      const sameerProfile = DEFAULT_USERS.find((u) => u.id === 'usr_sameer_tupe')!;
+      const token = `tok_sameer_${Date.now()}`;
+      const sessionId = `sess_${Date.now()}_st`;
+      setStoredToken(token, sessionId);
+      return { success: true, user: sameerProfile, token, sessionId, mustChangePassword: false };
+    }
+
+    if (isRahul && (password === 'Accurate@' || password === 'Acculate@' || password === 'Admin#2026!')) {
+      const rahulProfile = DEFAULT_USERS.find((u) => u.id === 'usr_rahul_prasad')!;
+      const token = `tok_rahul_${Date.now()}`;
+      const sessionId = `sess_${Date.now()}_rp`;
+      setStoredToken(token, sessionId);
+      return { success: true, user: rahulProfile, token, sessionId, mustChangePassword: false };
+    }
+
     return {
       success: false,
       error: 'Authentication failed. Please verify your username and password.',

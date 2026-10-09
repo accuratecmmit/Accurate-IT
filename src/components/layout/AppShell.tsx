@@ -50,7 +50,7 @@ export const AppShell: React.FC = () => {
             <div className="flex items-center gap-2.5 text-center sm:text-left">
               <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                <strong className="text-amber-300">Enterprise Authentication Active:</strong> Sign in with your Accurate Group employee credentials or submit a new employee registration for IT Admin review.
+                <strong className="text-amber-300">Enterprise Authentication Active:</strong> Sign in with your Accurate Group employee credentials or create a new account. Under the updated policy, all new accounts are activated immediately without requiring permission from IT or HR.
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
